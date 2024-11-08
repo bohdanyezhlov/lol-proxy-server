@@ -1,5 +1,4 @@
 import { Router } from "express";
-
 import { getLanguages } from "../services/ddragonService.mjs";
 import logger from "../utils/logger.mjs";
 
@@ -10,9 +9,9 @@ router.get("/languages", async (_, res) => {
     const languages = await getLanguages();
 
     res.json(languages);
-  } catch (e) {
-    logger.error(e.message);
-    res.status(500).json({ error: e.message });
+  } catch (error) {
+    logger.error(`Error fetching languages: ${error.message}`);
+    res.status(500).json({ error: "Server error" });
   }
 });
 

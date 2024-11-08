@@ -1,7 +1,7 @@
 import fetch from "node-fetch";
 import dotenv from "dotenv";
 
-import { CACHE_DURATION } from "../constants.mjs";
+import { CACHE_DURATION, DEFAULT_LANGUAGE } from "../constants.mjs";
 import logger from "../utils/logger.mjs";
 
 dotenv.config();
@@ -14,14 +14,24 @@ const cache = {
   championDetails: new Map(),
 };
 
-const fetchLatestVersion = async () => {
-  const response = await fetch(process.env.DDRAGON_VERSIONS_URL);
+const fetchJson = async (url) => {
+  const res = await fetch(url);
 
-  if (!response.ok) {
-    throw new Error("Failed to fetch versions");
+  if (!res.ok) {
+    throw new Error(`Failed to fetch data from ${url}`);
   }
 
-  const versions = await response.json();
+  const data = await res.json();
+
+  if (!data || typeof data !== "object") {
+    throw new Error(`Invalid data from ${url}`);
+  }
+
+  return data;
+};
+
+const fetchLatestVersion = async () => {
+  const versions = await fetchJson(process.env.DDRAGON_VERSIONS_URL);
 
   if (!Array.isArray(versions) || versions.length === 0) {
     throw new Error("Invalid versions data");
@@ -30,56 +40,18 @@ const fetchLatestVersion = async () => {
   return versions[0];
 };
 
-const fetchLanguages = async () => {
-  const response = await fetch(process.env.DDRAGON_LANGUAGES_URL);
-
-  if (!response.ok) {
-    throw new Error("Failed to fetch languages");
-  }
-
-  const languages = await response.json();
-
-  if (!Array.isArray(languages) || languages.length === 0) {
-    throw new Error("Invalid languages data");
-  }
-
-  return languages;
-};
+const fetchLanguages = async () => fetchJson(process.env.DDRAGON_LANGUAGES_URL);
 
 const fetchChampionsData = async (version, lang) => {
-  const response = await fetch(
-    `${process.env.DDRAGON_CHAMPIONS_URL}/${version}/data/${lang}/champion.json`
-  );
+  const url = `${process.env.DDRAGON_CHAMPIONS_URL}/${version}/data/${lang}/champion.json`;
 
-  if (!response.ok) {
-    throw new Error("Failed to fetch champions data");
-  }
-
-  const data = await response.json();
-
-  if (!data || typeof data !== "object") {
-    throw new Error("Invalid champions data");
-  }
-
-  return data;
+  return fetchJson(url);
 };
 
 const fetchChampionDetails = async (version, lang, championId) => {
-  const response = await fetch(
-    `${process.env.DDRAGON_CHAMPIONS_URL}/${version}/data/${lang}/champion/${championId}.json`
-  );
+  const url = `${process.env.DDRAGON_CHAMPIONS_URL}/${version}/data/${lang}/champion/${championId}.json`;
 
-  if (!response.ok) {
-    throw new Error(`Failed to fetch data for champion ${championId}`);
-  }
-
-  const data = await response.json();
-
-  if (!data || typeof data !== "object") {
-    throw new Error(`Invalid data for champion ${championId}`);
-  }
-
-  return data;
+  return fetchJson(url);
 };
 
 export const getLanguages = async () => {
@@ -95,28 +67,66 @@ export const getLanguages = async () => {
   return cache.languages;
 };
 
-export const getChampionsData = async (lang = "en_US") => {
+export const getChampionsData = async (lang = DEFAULT_LANGUAGE) => {
   const now = Date.now();
+  const cacheKey = `championsData-${lang}`;
 
-  if (cache.championsData && now - cache.timestamp < CACHE_DURATION) {
-    logger.info("Returning cached champions data");
+  if (cache[cacheKey] && now - cache[cacheKey].timestamp < CACHE_DURATION) {
+    logger.info(`Returning cached champions data for lang: ${lang}`);
 
-    return cache.championsData;
+    return cache[cacheKey].data;
   }
 
-  const latestVersion = await fetchLatestVersion();
+  try {
+    const latestVersion = await fetchLatestVersion();
 
-  if (latestVersion !== cache.version) {
-    cache.version = latestVersion;
-    cache.championsData = await fetchChampionsData(latestVersion, lang);
+    if (latestVersion !== cache.version) {
+      cache.version = latestVersion;
+    }
+
+    const data = await fetchChampionsData(latestVersion, lang);
     cache.timestamp = now;
-    logger.info("Fetched new champions data");
-  }
 
-  return cache.championsData;
+    const transformedData = {
+      version: latestVersion,
+      champions: Object.keys(data.data).map((championKey) => {
+        const champion = data.data[championKey];
+        return {
+          [champion.name]: {
+            id: champion.id,
+            key: champion.key,
+            name: champion.name,
+            title: champion.title,
+            blurb: champion.blurb,
+            difficulty: champion.info.difficulty,
+            imageLink: champion.image.full,
+            tags: champion.tags,
+            partype: champion.partype,
+          },
+        };
+      }),
+    };
+
+    cache[cacheKey] = {
+      data: transformedData,
+      timestamp: now,
+    };
+
+    logger.info(`Fetched and transformed new champions data for lang: ${lang}`);
+
+    return transformedData;
+  } catch (err) {
+    logger.error(
+      `Error fetching champions data for lang ${lang}: ${err.message}`
+    );
+    throw err;
+  }
 };
 
-export const getChampionDetails = async (championId, lang = "en_US") => {
+export const getChampionDetails = async (
+  championId,
+  lang = DEFAULT_LANGUAGE
+) => {
   const now = Date.now();
   const cacheKey = `${championId}-${cache.version}-${lang}`;
 
@@ -129,11 +139,51 @@ export const getChampionDetails = async (championId, lang = "en_US") => {
     return cache.championDetails.get(cacheKey).data;
   }
 
-  const latestVersion = await fetchLatestVersion();
-  const data = await fetchChampionDetails(latestVersion, lang, championId);
+  try {
+    const latestVersion = await fetchLatestVersion();
+    const data = await fetchChampionDetails(latestVersion, lang, championId);
 
-  cache.championDetails.set(cacheKey, { data, timestamp: now });
-  logger.info(`Fetched new data for champion ${championId}`);
+    const transformedData = {
+      version: latestVersion,
+      [data.data[championId].name]: {
+        id: data.data[championId].id,
+        key: data.data[championId].key,
+        name: data.data[championId].name,
+        title: data.data[championId].title,
+        skins: data.data[championId].skins.map((skin) => ({
+          id: skin.id,
+          num: skin.num,
+          name: skin.name,
+          chromas: skin.chromas,
+        })),
+        lore: data.data[championId].lore,
+        blurb: data.data[championId].blurb,
+        tags: data.data[championId].tags,
+        partype: data.data[championId].partype,
+        difficulty: data.data[championId].info.difficulty,
+        spells: data.data[championId].spells.map((spell) => ({
+          id: spell.id,
+          name: spell.name,
+          description: spell.description,
+        })),
+        passive: {
+          name: data.data[championId].passive.name,
+          description: data.data[championId].passive.description,
+        },
+      },
+    };
 
-  return data;
+    cache.championDetails.set(cacheKey, {
+      data: transformedData,
+      timestamp: now,
+    });
+    logger.info(`Fetched and transformed new data for champion ${championId}`);
+
+    return transformedData;
+  } catch (err) {
+    logger.error(
+      `Error fetching champion details for ID ${championId}: ${err.message}`
+    );
+    throw error;
+  }
 };
