@@ -8,7 +8,7 @@ import logger from "./utils/logger.mjs";
 import authRouter from "./routes/auth.mjs";
 import languagesRouter from "./routes/languages.mjs";
 import championsRouter from "./routes/champions.mjs";
-import auth from "./middleware/auth.mjs";
+import auth from "./middlewares/auth.mjs";
 import { swaggerUi, specs } from "./swaggerConfig.mjs";
 
 dotenv.config({ path: ".env.local" });
