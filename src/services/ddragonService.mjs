@@ -61,23 +61,35 @@ export const getLanguages = async () => {
     return cache.languages;
   }
 
-  cache.languages = await fetchLanguages();
-  logger.info("Fetched new languages data");
+  try {
+    const languages = await fetchLanguages();
+    cache.languages = languages;
+    logger.info("Fetched new languages data");
 
-  return cache.languages;
+    return languages;
+  } catch (err) {
+    logger.error(`Error fetching languages: ${err.message}`);
+    throw err;
+  }
 };
 
 export const getChampionsData = async (lang = DEFAULT_LANGUAGE) => {
-  const now = Date.now();
-  const cacheKey = `championsData-${lang}`;
-
-  if (cache[cacheKey] && now - cache[cacheKey].timestamp < CACHE_DURATION) {
-    logger.info(`Returning cached champions data for lang: ${lang}`);
-
-    return cache[cacheKey].data;
-  }
-
   try {
+    const validLanguages = await getLanguages();
+
+    if (!validLanguages.includes(lang)) {
+      throw new Error(`Invalid language code: ${lang}`);
+    }
+
+    const now = Date.now();
+    const cacheKey = `championsData-${lang}`;
+
+    if (cache[cacheKey] && now - cache[cacheKey].timestamp < CACHE_DURATION) {
+      logger.info(`Returning cached champions data for lang: ${lang}`);
+
+      return cache[cacheKey].data;
+    }
+
     const latestVersion = await fetchLatestVersion();
 
     if (latestVersion !== cache.version) {
@@ -116,9 +128,7 @@ export const getChampionsData = async (lang = DEFAULT_LANGUAGE) => {
 
     return transformedData;
   } catch (err) {
-    logger.error(
-      `Error fetching champions data for lang ${lang}: ${err.message}`
-    );
+    logger.error(`Error fetching champions data: ${err.message}`);
     throw err;
   }
 };
@@ -127,19 +137,24 @@ export const getChampionDetails = async (
   championId,
   lang = DEFAULT_LANGUAGE
 ) => {
-  const now = Date.now();
-  const cacheKey = `${championId}-${cache.version}-${lang}`;
-
-  if (
-    cache.championDetails.has(cacheKey) &&
-    now - cache.championDetails.get(cacheKey).timestamp < CACHE_DURATION
-  ) {
-    logger.info(`Returning cached data for champion ${championId}`);
-
-    return cache.championDetails.get(cacheKey).data;
-  }
-
   try {
+    const validLanguages = await getLanguages();
+
+    if (!validLanguages.includes(lang)) {
+      throw new Error(`Invalid language code: ${lang}`);
+    }
+    const now = Date.now();
+    const cacheKey = `${championId}-${cache.version}-${lang}`;
+
+    if (
+      cache.championDetails.has(cacheKey) &&
+      now - cache.championDetails.get(cacheKey).timestamp < CACHE_DURATION
+    ) {
+      logger.info(`Returning cached data for champion ${championId}`);
+
+      return cache.championDetails.get(cacheKey).data;
+    }
+
     const latestVersion = await fetchLatestVersion();
     const data = await fetchChampionDetails(latestVersion, lang, championId);
 
@@ -184,6 +199,6 @@ export const getChampionDetails = async (
     logger.error(
       `Error fetching champion details for ID ${championId}: ${err.message}`
     );
-    throw error;
+    throw err;
   }
 };
