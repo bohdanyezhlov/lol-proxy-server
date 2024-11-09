@@ -67,9 +67,9 @@ export const getLanguages = async () => {
     logger.info("Fetched new languages data");
 
     return languages;
-  } catch (err) {
-    logger.error(`Error fetching languages: ${err.message}`);
-    throw err;
+  } catch (e) {
+    logger.error(`Error fetching languages: ${e.message}`);
+    throw e;
   }
 };
 
@@ -127,9 +127,9 @@ export const getChampionsData = async (lang = DEFAULT_LANGUAGE) => {
     logger.info(`Fetched and transformed new champions data for lang: ${lang}`);
 
     return transformedData;
-  } catch (err) {
-    logger.error(`Error fetching champions data: ${err.message}`);
-    throw err;
+  } catch (e) {
+    logger.error(`Error fetching champions data: ${e.message}`);
+    throw e;
   }
 };
 
@@ -195,10 +195,14 @@ export const getChampionDetails = async (
     logger.info(`Fetched and transformed new data for champion ${championId}`);
 
     return transformedData;
-  } catch (err) {
+  } catch (e) {
+    if (e.message.includes("Failed to fetch data from")) {
+      logger.warn(`Champion with ID ${championId} does not exist`);
+      throw new Error(`Champion with ID ${championId} not found`);
+    }
     logger.error(
-      `Error fetching champion details for ID ${championId}: ${err.message}`
+      `Error fetching champion details for ID ${championId}: ${e.message}`
     );
-    throw err;
+    throw e;
   }
 };

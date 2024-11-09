@@ -11,15 +11,12 @@
  *           schema:
  *             type: object
  *             required:
- *               - username
- *               - password
  *               - email
+ *               - password
  *             properties:
- *               username:
+ *               email:
  *                 type: string
  *               password:
- *                 type: string
- *               email:
  *                 type: string
  *     responses:
  *       201:
@@ -43,10 +40,10 @@
  *           schema:
  *             type: object
  *             required:
- *               - username
+ *               - email
  *               - password
  *             properties:
- *               username:
+ *               email:
  *                 type: string
  *               password:
  *                 type: string

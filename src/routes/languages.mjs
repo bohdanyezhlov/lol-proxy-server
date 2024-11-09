@@ -1,5 +1,5 @@
 import { Router } from "express";
-import { getLanguages } from "../services/ddragonService.mjs";
+import { getLanguages } from "../services/ddragon.mjs";
 import logger from "../utils/logger.mjs";
 
 const router = Router();

@@ -38,8 +38,8 @@ app.use("/api/auth", authRouter);
 app.use("/api", auth, languagesRouter);
 app.use("/api", auth, championsRouter);
 
-app.use((err, _, res) => {
-  logger.error(err.stack);
+app.use((e, req, res, next) => {
+  logger.error(e.stack);
   res.status(500).json({ message: "Internal Server Error" });
 });
 

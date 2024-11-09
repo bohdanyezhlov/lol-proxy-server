@@ -3,7 +3,7 @@ import { Router } from "express";
 import {
   handleGetChampions,
   handleGetChampionDetails,
-} from "../controllers/championsController.mjs";
+} from "../controllers/champions.mjs";
 
 const router = Router();
 

@@ -12,7 +12,7 @@ const auth = (req, res, next) => {
     req.user = decoded.userId;
 
     next();
-  } catch (err) {
+  } catch (e) {
     res.status(401).json({ message: "Token is not valid" });
   }
 };
