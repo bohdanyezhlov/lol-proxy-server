@@ -3,7 +3,10 @@ import { validationResult } from "express-validator";
 
 import User from "../models/user.mjs";
 import logger from "../utils/logger.mjs";
-import sendVerificationEmail from "../utils/email.mjs";
+import {
+  sendVerificationEmail,
+  sendPasswordResetEmail,
+} from "../utils/email.mjs";
 
 export const register = async (req, res) => {
   const errors = validationResult(req);
@@ -51,7 +54,7 @@ export const verifyEmail = async (req, res) => {
       return res.status(400).json({ message: "Invalid or expired token" });
     }
 
-    user.isEmailVerified = true;
+    user.is_email_verified = true;
     user.email_verification_token = undefined;
     user.email_verification_expires = undefined;
     await user.save();
@@ -96,6 +99,56 @@ export const login = async (req, res) => {
     res.json({ token });
   } catch (e) {
     logger.error("Error during login:", e);
+    res.status(500).json({ message: "Server error" });
+  }
+};
+
+export const requestPasswordReset = async (req, res) => {
+  const { email } = req.body;
+
+  try {
+    const user = await User.findOne({ email });
+
+    if (!user) {
+      logger.warn(`Password reset requested for non-existent email: ${email}`);
+      return res.status(404).json({ message: "User not found" });
+    }
+
+    const token = user.generatePasswordResetToken();
+    await user.save();
+
+    await sendPasswordResetEmail(user, token);
+
+    logger.info(`Password reset email sent to: ${email}`);
+    res.status(200).json({ message: "Password reset email sent" });
+  } catch (e) {
+    logger.error(`Error in requestPasswordReset: ${e.message}`);
+    res.status(500).json({ message: "Server error" });
+  }
+};
+
+export const resetPassword = async (req, res) => {
+  const { token, new_password } = req.body;
+
+  try {
+    const user = await User.findOne({
+      reset_password_token: token,
+      reset_password_expires: { $gt: Date.now() },
+    });
+
+    if (!user) {
+      return res
+        .status(400)
+        .json({ message: "Password reset token is invalid or has expired" });
+    }
+
+    user.password = new_password;
+    user.reset_password_token = undefined;
+    user.reset_password_expires = undefined;
+    await user.save();
+
+    res.status(200).json({ message: "Password has been reset" });
+  } catch (e) {
     res.status(500).json({ message: "Server error" });
   }
 };

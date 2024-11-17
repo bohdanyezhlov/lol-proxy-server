@@ -8,7 +8,7 @@ const transporter = nodemailer.createTransport({
   port: 1025,
 });
 
-const sendVerificationEmail = (user, token) => {
+export const sendVerificationEmail = (user, token) => {
   const verificationUrl = `${process.env.BACKEND_URL}/api/auth/verify-email?token=${token}`;
 
   const mailOptions = {
@@ -22,4 +22,15 @@ const sendVerificationEmail = (user, token) => {
   return transporter.sendMail(mailOptions);
 };
 
-export default sendVerificationEmail;
+export const sendPasswordResetEmail = (user, token) => {
+  const resetUrl = `${process.env.BACKEND_URL}/api/auth/reset-password?token=${token}`;
+
+  const mailOptions = {
+    from: process.env.EMAIL_FROM_NO_REPLY,
+    to: user.email,
+    subject: "Password Reset",
+    text: `Hello!\n\nYou requested a password reset. Please click the following link to reset your password: ${resetUrl}\n\nIf you did not request this, please ignore this email.\n\nThank you!`,
+  };
+
+  return transporter.sendMail(mailOptions);
+};
