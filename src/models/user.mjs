@@ -12,7 +12,14 @@ const userSchema = new mongoose.Schema(
     reset_password_token: { type: String },
     reset_password_expires: { type: Date },
     //
-    mainChampion: { type: String, default: null },
+    main_champion: { type: String, default: null },
+    team: {
+      top: { type: String, default: null },
+      jungle: { type: String, default: null },
+      mid: { type: String, default: null },
+      adc: { type: String, default: null },
+      support: { type: String, default: null },
+    },
   },
   { timestamps: true }
 );

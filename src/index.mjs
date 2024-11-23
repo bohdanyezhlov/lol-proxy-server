@@ -8,6 +8,8 @@ import logger from "./utils/logger.mjs";
 import authRouter from "./routes/auth.mjs";
 import languagesRouter from "./routes/languages.mjs";
 import championsRouter from "./routes/champions.mjs";
+import userRouter from "./routes/user.mjs";
+import teamRouter from "./routes/team.mjs";
 import auth from "./middlewares/auth.mjs";
 import { swaggerUi, specs } from "./swaggerConfig.mjs";
 
@@ -37,6 +39,8 @@ app.use("/api-docs", swaggerUi.serve, swaggerUi.setup(specs));
 app.use("/api/auth", authRouter);
 app.use("/api", auth, languagesRouter);
 app.use("/api", auth, championsRouter);
+app.use("/api", auth, teamRouter);
+app.use("/api/admin", auth, userRouter);
 
 app.use((e, req, res, next) => {
   logger.error(e.stack);
